@@ -5,7 +5,7 @@ import org.junit.Test
 import org.junit.Assert.*
 
 class EvaluationTreeTest {
-    val tests: List<String> = listOf(
+    private val tests: List<String> = listOf(
             "1",
             "0",
             "10",
@@ -46,12 +46,12 @@ class EvaluationTreeTest {
 
     @Test
     fun parseTest() {
-        tests.forEach { s -> println(s); EvaluationTree(s); }
+        tests.forEach { s -> println(s); EvaluationTreeBuilderVisitor.buildTree(s); }
     }
 
     @Test
     fun evaluateTest() {
-        //tests.forEach { s -> println(s); EvaluationTree(s).evaluate(); }
+        tests.forEach { s -> println(s); EvaluationTreeBuilderVisitor.buildTree(s).evaluate(); }
     }
 
 }

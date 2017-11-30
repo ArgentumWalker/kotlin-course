@@ -1,7 +1,5 @@
 package ru.spbau.mit.evaluation_tree
 
-import org.antlr.v4.runtime.atn.SemanticContext
-
 abstract class Node(val line: Long) {
     abstract fun exec(scope: Scope): Value
 }
@@ -11,18 +9,14 @@ abstract class Statement(line: Long): Node(line)
 
 abstract class Expression(line: Long): Statement(line)
 
-class Block(val statements: List<Statement>, line: Long): Node(line) {
+class Block(private val statements: List<Statement>, line: Long): Node(line) {
     override fun exec(scope: Scope): Value {
         scope.put()
-        println("Enter Scope")
         try {
             for (statement in statements) {
                 statement.exec(scope)
             }
-        } catch (e: Exception) {
-            throw e
         } finally {
-            println("Exit Scope")
             scope.popup()
         }
         return Value(0, line)
@@ -31,7 +25,7 @@ class Block(val statements: List<Statement>, line: Long): Node(line) {
 
 //Statements
 
-class While(val expr: Expression, val block: Block, line: Long): Statement(line) {
+class While(private val expr: Expression, private val block: Block, line: Long): Statement(line) {
     override fun exec(scope: Scope): Value {
         while (expr.exec(scope).value != 0L) {
             block.exec(scope)
@@ -40,7 +34,7 @@ class While(val expr: Expression, val block: Block, line: Long): Statement(line)
     }
 }
 
-class If(val expr: Expression, val block: Block, val elseBlock: Block?, line: Long): Statement(line) {
+class If(private val expr: Expression, private val block: Block, private val elseBlock: Block?, line: Long): Statement(line) {
     override fun exec(scope: Scope): Value {
         if (expr.exec(scope).value != 0L) {
             block.exec(scope)
@@ -51,7 +45,7 @@ class If(val expr: Expression, val block: Block, val elseBlock: Block?, line: Lo
     }
 }
 
-class Return(val expr: Expression, line: Long): Statement(line) {
+class Return(private val expr: Expression, line: Long): Statement(line) {
     override fun exec(scope: Scope): Value {
         throw ReturnException(expr.exec(scope), line)
     }
@@ -75,7 +69,7 @@ class PrintFunction(name: String): Function(name, Parameters(emptyList(), -1), B
     override fun exec(scope: Scope): Value {throw FunctionAlreadyDefinedException(name, line)}
 }
 
-class Variable(val name: String, val expr: Expression?, line: Long): Statement(line) {
+class Variable(val name: String, private val expr: Expression?, line: Long): Statement(line) {
     var value: Value = Value(0, line)
 
     override fun exec(scope: Scope): Value {
@@ -94,7 +88,7 @@ class Arguments(val arguments: List<Expression>, line: Long): Node(line) {
     }
 }
 
-class FunctionCall(val name: String, val arguments: Arguments, line: Long): Expression(line) {
+class FunctionCall(private val name: String, private val arguments: Arguments, line: Long): Expression(line) {
     override fun exec(scope: Scope): Value {
         val f: Function = scope.getFunction(name, line)
         if (f is PrintFunction) {
@@ -128,11 +122,15 @@ class FunctionCall(val name: String, val arguments: Arguments, line: Long): Expr
     }
 }
 
-class VariableCall(val name: String, line: Long): Expression(line) {
+class VariableCall(private val name: String, line: Long): Expression(line) {
     override fun exec(scope: Scope): Value = scope.getVariable(name, line).value
 }
 
-class VariableValueAssign(val name: String, val expr: Expression, line: Long): Expression(line) {
+class VariableValueAssign(
+        private val name: String,
+        private val expr: Expression,
+        line: Long
+): Expression(line) {
     override fun exec(scope: Scope): Value {
         val value: Value = expr.exec(scope)
         val variable: Variable = scope.getVariable(name, line)
@@ -141,7 +139,11 @@ class VariableValueAssign(val name: String, val expr: Expression, line: Long): E
     }
 }
 
-class VariableAssign(val name: String, val expr: Expression, line: Long): Expression(line) {
+class VariableAssign(
+        private val name: String,
+        private val expr: Expression,
+        line: Long
+): Expression(line) {
     override fun exec(scope: Scope): Value {
         val value: Value = expr.exec(scope)
         val variable: Variable = scope.getVariable(name, line)
@@ -151,7 +153,12 @@ class VariableAssign(val name: String, val expr: Expression, line: Long): Expres
 }
 
 //Values
-class BinaryExpression(val left: Expression, val type: OperationType, val right: Expression, line: Long): Expression(line) {
+class BinaryExpression(
+        private val left: Expression,
+        private val type: OperationType,
+        private val right: Expression,
+        line: Long
+): Expression(line) {
     override fun exec(scope: Scope): Value {
         val l: Value = left.exec(scope)
         val r: Value = right.exec(scope)
@@ -162,38 +169,38 @@ class BinaryExpression(val left: Expression, val type: OperationType, val right:
 class Value(var value: Long, line: Long): Expression(line) {
     override fun exec(scope: Scope): Value = this
 
-    fun plus(v: Value): Value = Value(value + v.value, line)
-    fun minus(v: Value): Value = Value(value - v.value, line)
-    fun mult(v: Value): Value = Value(value * v.value, line)
+    private fun plus(v: Value): Value = Value(value + v.value, line)
+    private fun minus(v: Value): Value = Value(value - v.value, line)
+    private fun mult(v: Value): Value = Value(value * v.value, line)
 
-    fun divide(v: Value): Value = Value(value / v.value, line)
-    fun mod(v: Value): Value = Value(value % v.value, line)
+    private fun divide(v: Value): Value = Value(value / v.value, line)
+    private fun mod(v: Value): Value = Value(value % v.value, line)
 
-    fun or(v: Value): Value = if (value != 0L || v.value != 0L) Value(1, line) else Value(0, line)
-    fun and(v: Value): Value = if (value != 0L && v.value != 0L) Value(1, line) else Value(0, line)
+    private fun or(v: Value): Value = if (value != 0L || v.value != 0L) Value(1, line) else Value(0, line)
+    private fun and(v: Value): Value = if (value != 0L && v.value != 0L) Value(1, line) else Value(0, line)
 
-    fun less(v: Value): Value = if (value < v.value) Value(1, line) else Value(0, line)
-    fun leq(v: Value): Value = if (value <= v.value) Value(1, line) else Value(0, line)
-    fun gret(v: Value): Value = if (value > v.value) Value(1, line) else Value(0, line)
-    fun geq(v: Value): Value = if (value >= v.value) Value(1, line) else Value(0, line)
-    fun eq(v: Value): Value = if (value  == v.value) Value(1, line) else Value(0, line)
-    fun neq(v: Value): Value = if (value != v.value) Value(1, line) else Value(0, line)
+    private fun less(v: Value): Value = if (value < v.value) Value(1, line) else Value(0, line)
+    private fun leq(v: Value): Value = if (value <= v.value) Value(1, line) else Value(0, line)
+    private fun gret(v: Value): Value = if (value > v.value) Value(1, line) else Value(0, line)
+    private fun geq(v: Value): Value = if (value >= v.value) Value(1, line) else Value(0, line)
+    private fun eq(v: Value): Value = if (value  == v.value) Value(1, line) else Value(0, line)
+    private fun neq(v: Value): Value = if (value != v.value) Value(1, line) else Value(0, line)
 
     fun eval(v: Value, op: OperationType): Value {
-        when (op) {
-            OperationType.PLUS -> return plus(v)
-            OperationType.MINUS -> return minus(v)
-            OperationType.MULT -> return mult(v)
-            OperationType.DIVIDE -> return divide(v)
-            OperationType.MOD -> return mod(v)
-            OperationType.OR -> return or(v)
-            OperationType.AND -> return and(v)
-            OperationType.LESS -> return less(v)
-            OperationType.LEQ -> return leq(v)
-            OperationType.GRET -> return gret(v)
-            OperationType.GEQ -> return geq(v)
-            OperationType.EQ -> return eq(v)
-            OperationType.NEQ -> return neq(v)
+        return when (op) {
+            OperationType.PLUS -> plus(v)
+            OperationType.MINUS -> minus(v)
+            OperationType.MULT -> mult(v)
+            OperationType.DIVIDE -> divide(v)
+            OperationType.MOD -> mod(v)
+            OperationType.OR -> or(v)
+            OperationType.AND -> and(v)
+            OperationType.LESS -> less(v)
+            OperationType.LEQ -> leq(v)
+            OperationType.GRET -> gret(v)
+            OperationType.GEQ -> geq(v)
+            OperationType.EQ -> eq(v)
+            OperationType.NEQ -> neq(v)
         }
     }
 }

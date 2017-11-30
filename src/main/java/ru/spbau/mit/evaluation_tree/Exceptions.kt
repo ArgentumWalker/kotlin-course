@@ -2,20 +2,12 @@ package ru.spbau.mit.evaluation_tree
 
 open class LanguageException(val line: Long): Exception()
 
-class NoSuchFunctionException(val name: String, line: Long): LanguageException(line) {
-    override val message: String? = line.toString() + ":: No function with name \"$name\" found."
+class NoSuchException(name: String, line: Long): LanguageException(line) {
+    override val message: String? = line.toString() + ":: \"$name\" not found."
 }
 
-class NoSuchVariableException(val name: String, line: Long): LanguageException(line) {
-    override val message: String? = line.toString() + ":: No variable with name \"$name\" found."
-}
-
-class FunctionAlreadyDefinedException(val name: String, line: Long): LanguageException(line) {
-    override val message: String? = line.toString() + ":: Function with name \"$name\" is already defined."
-}
-
-class VariableAlreadyDefinedException(val name: String, line: Long): LanguageException(line) {
-    override val message: String? = line.toString() + ":: Variable with name \"$name\" is already defined."
+class AlreadyDefinedException(name: String, line: Long): LanguageException(line) {
+    override val message: String? = line.toString() + ":: \"$name\" already defined."
 }
 
 class FakeNodeException(line: Long): LanguageException(line) {
