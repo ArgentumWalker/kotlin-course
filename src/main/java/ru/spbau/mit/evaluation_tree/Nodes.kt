@@ -9,7 +9,7 @@ abstract class Statement(line: Long): Node(line)
 
 abstract class Expression(line: Long): Statement(line)
 
-class Block(private val statements: List<Statement>, line: Long): Node(line) {
+class Block(val statements: List<Statement>, line: Long): Node(line) {
     override fun exec(scope: Scope): Value {
         scope.put()
         try {
@@ -25,7 +25,7 @@ class Block(private val statements: List<Statement>, line: Long): Node(line) {
 
 //Statements
 
-class While(private val expr: Expression, private val block: Block, line: Long): Statement(line) {
+class While(private val expr: Expression, val block: Block, line: Long): Statement(line) {
     override fun exec(scope: Scope): Value {
         while (expr.exec(scope).value != 0L) {
             block.exec(scope)
@@ -34,7 +34,7 @@ class While(private val expr: Expression, private val block: Block, line: Long):
     }
 }
 
-class If(private val expr: Expression, private val block: Block, private val elseBlock: Block?, line: Long): Statement(line) {
+class If(private val expr: Expression, val block: Block, val elseBlock: Block?, line: Long): Statement(line) {
     override fun exec(scope: Scope): Value {
         if (expr.exec(scope).value != 0L) {
             block.exec(scope)
@@ -66,10 +66,10 @@ open class Function(val name: String, val parameters: Parameters, val block: Blo
 }
 
 class PrintFunction(name: String): Function(name, Parameters(emptyList(), -1), Block(emptyList(), -1), -1) {
-    override fun exec(scope: Scope): Value {throw FunctionAlreadyDefinedException(name, line)}
+    override fun exec(scope: Scope): Value {throw AlreadyDefinedException(name, line)}
 }
 
-class Variable(val name: String, private val expr: Expression?, line: Long): Statement(line) {
+class Variable(val name: String, val expr: Expression?, line: Long): Statement(line) {
     var value: Value = Value(0, line)
 
     override fun exec(scope: Scope): Value {
@@ -88,7 +88,7 @@ class Arguments(val arguments: List<Expression>, line: Long): Node(line) {
     }
 }
 
-class FunctionCall(private val name: String, private val arguments: Arguments, line: Long): Expression(line) {
+class FunctionCall(private val name: String, val arguments: Arguments, line: Long): Expression(line) {
     override fun exec(scope: Scope): Value {
         val f: Function = scope.getFunction(name, line)
         if (f is PrintFunction) {
@@ -154,9 +154,9 @@ class VariableAssign(
 
 //Values
 class BinaryExpression(
-        private val left: Expression,
+        val left: Expression,
         private val type: OperationType,
-        private val right: Expression,
+        val right: Expression,
         line: Long
 ): Expression(line) {
     override fun exec(scope: Scope): Value {

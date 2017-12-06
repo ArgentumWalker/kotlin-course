@@ -17,7 +17,6 @@ class Scope {
 
     fun getFunction(name: String, line: Long): Function = funDeque.get(name, line)
 
-
     fun addFunction(f: Function, line: Long) = funDeque.add(f, f.name, line)
 
     fun getVariable(name: String, line: Long): Variable = varDeque.get(name, line)

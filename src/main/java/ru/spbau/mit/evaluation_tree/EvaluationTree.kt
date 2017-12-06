@@ -12,12 +12,7 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
 
-class EvaluationTree {
-    private val rootNode: Node
-
-    constructor(root: Node) {
-        rootNode = root
-    }
+class EvaluationTree(val rootNode: Node) {
 
     fun evaluate(): Value {
         return rootNode.exec(Scope.defaultScope())
