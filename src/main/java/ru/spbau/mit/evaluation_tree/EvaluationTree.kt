@@ -12,17 +12,12 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
 
-class EvaluationTree(val rootNode: Node) {
-
-    fun evaluate(): Value {
-        return rootNode.exec(Scope.defaultScope())
-    }
-}
+class EvaluationTree(val rootNode: Node)
 
 object EvaluationTreeBuilderVisitor: langVisitor<Node>, AbstractParseTreeVisitor<Node>() {
 
     fun buildTree(code: String): EvaluationTree {
-        return buildTree(CharStreams.fromString(code));
+        return buildTree(CharStreams.fromString(code))
     }
 
     fun buildTree(file: File): EvaluationTree {
@@ -30,10 +25,16 @@ object EvaluationTreeBuilderVisitor: langVisitor<Node>, AbstractParseTreeVisitor
     }
 
     fun buildTree(input: CharStream): EvaluationTree {
-        return EvaluationTree(EvaluationTreeBuilderVisitor
-                .visitFile(langParser(BufferedTokenStream(langLexer(input))).file()))
+        return EvaluationTree(visitFile(getParser(input).file()))
     }
 
+    fun buildExpression(code: String): Expression {
+        return visitExpression(getParser(CharStreams.fromString(code)).expression())
+    }
+
+    private fun getParser(input: CharStream): langParser {
+        return langParser(BufferedTokenStream(langLexer(input)))
+    }
 
     override fun visitFile(ctx: langParser.FileContext): Block {
         return visitBlock(ctx.block())

@@ -1,10 +1,9 @@
 package ru.spbau.mit.evaluation_tree
 
-import org.antlr.v4.codegen.model.decl.CodeBlock
 import org.junit.Assert
 import org.junit.Test
 
-import org.junit.Assert.*
+import ru.spbau.mit.Runner
 
 class EvaluationTreeTest {
     private val tests: List<String> = listOf(
@@ -53,7 +52,12 @@ class EvaluationTreeTest {
 
     @Test
     fun evaluateTest() {
-        tests.forEach { s -> println(s); EvaluationTreeBuilderVisitor.buildTree(s).evaluate(); }
+        val runner: Runner = Runner()
+        tests.forEach {
+            s -> println(s)
+            runner.tree = EvaluationTreeBuilderVisitor.buildTree(s)
+            runner.start()
+        }
     }
 
     @Test

@@ -1,7 +1,11 @@
 package ru.spbau.mit.evaluation_tree
 
+import ru.spbau.mit.EvaluationVisitor
+import kotlin.coroutines.experimental.RestrictsSuspension
+
+@RestrictsSuspension
 abstract class Node(val line: Long) {
-    abstract fun exec(scope: Scope): Value
+    abstract suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value
 }
 
 
@@ -10,11 +14,11 @@ abstract class Statement(line: Long): Node(line)
 abstract class Expression(line: Long): Statement(line)
 
 class Block(val statements: List<Statement>, line: Long): Node(line) {
-    override fun exec(scope: Scope): Value {
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
         scope.put()
         try {
             for (statement in statements) {
-                statement.exec(scope)
+                visitor.visit(statement)
             }
         } finally {
             scope.popup()
@@ -26,55 +30,57 @@ class Block(val statements: List<Statement>, line: Long): Node(line) {
 //Statements
 
 class While(private val expr: Expression, val block: Block, line: Long): Statement(line) {
-    override fun exec(scope: Scope): Value {
-        while (expr.exec(scope).value != 0L) {
-            block.exec(scope)
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
+        while (visitor.visit(expr).value != 0L) {
+            visitor.visit(block)
         }
         return Value(0, line)
     }
 }
 
 class If(private val expr: Expression, val block: Block, val elseBlock: Block?, line: Long): Statement(line) {
-    override fun exec(scope: Scope): Value {
-        if (expr.exec(scope).value != 0L) {
-            block.exec(scope)
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
+        if (visitor.visit(expr).value != 0L) {
+            visitor.visit(block)
         } else {
-            elseBlock?.exec(scope)
+            if (elseBlock != null) {
+                visitor.visit(elseBlock)
+            }
         }
         return Value(0, line)
     }
 }
 
 class Return(private val expr: Expression, line: Long): Statement(line) {
-    override fun exec(scope: Scope): Value {
-        throw ReturnException(expr.exec(scope), line)
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
+        throw ReturnException(visitor.visit(expr), line)
     }
 }
 
 //Definitions
 class Parameters(val parametrs: List<String>, line: Long): Node(line) {
-    override fun exec(scope: Scope): Value {
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
         throw FakeNodeException(line)
     }
 }
 
 open class Function(val name: String, val parameters: Parameters, val block: Block, line: Long): Statement(line) {
-    override fun exec(scope: Scope): Value {
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
         scope.addFunction(this, line)
         return Value(0, line)
     }
 }
 
 class PrintFunction(name: String): Function(name, Parameters(emptyList(), -1), Block(emptyList(), -1), -1) {
-    override fun exec(scope: Scope): Value {throw AlreadyDefinedException(name, line)}
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {throw AlreadyDefinedException(name, line)}
 }
 
 class Variable(val name: String, val expr: Expression?, line: Long): Statement(line) {
     var value: Value = Value(0, line)
 
-    override fun exec(scope: Scope): Value {
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
         if (expr != null) {
-            value = expr.exec(scope)
+            value = visitor.visit(expr)
         }
         scope.addVariable(this, line)
         return Value(0, line)
@@ -83,17 +89,17 @@ class Variable(val name: String, val expr: Expression?, line: Long): Statement(l
 
 //Calls
 class Arguments(val arguments: List<Expression>, line: Long): Node(line) {
-    override fun exec(scope: Scope): Value {
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
         throw FakeNodeException(line)
     }
 }
 
 class FunctionCall(private val name: String, val arguments: Arguments, line: Long): Expression(line) {
-    override fun exec(scope: Scope): Value {
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
         val f: Function = scope.getFunction(name, line)
         if (f is PrintFunction) {
             for (arg in arguments.arguments) {
-                print(arg)
+                print(visitor.visit(arg).value)
             }
             println()
             return Value(0, line)
@@ -101,16 +107,12 @@ class FunctionCall(private val name: String, val arguments: Arguments, line: Lon
         if (f.parameters.parametrs.size != arguments.arguments.size) {
             throw WrongArgumentCountException(line)
         }
-        val vars: MutableList<Variable> = mutableListOf()
-        for (i: Int in 0 until arguments.arguments.size) {
-            vars.add(Variable(f.parameters.parametrs[i], arguments.arguments[i].exec(scope), line))
-        }
         scope.put()
         try {
-            for (v in vars) {
-                scope.addVariable(v, line)
+            for (i: Int in 0 until arguments.arguments.size) {
+                visitor.visit(Variable(f.parameters.parametrs[i], visitor.visit(arguments.arguments[i]), line))
             }
-            f.block.exec(scope)
+            visitor.visit(f.block)
         } catch (e: ReturnException) {
             return e.value
         } catch (e: Exception) {
@@ -123,7 +125,7 @@ class FunctionCall(private val name: String, val arguments: Arguments, line: Lon
 }
 
 class VariableCall(private val name: String, line: Long): Expression(line) {
-    override fun exec(scope: Scope): Value = scope.getVariable(name, line).value
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value = scope.getVariable(name, line).value
 }
 
 class VariableValueAssign(
@@ -131,8 +133,8 @@ class VariableValueAssign(
         private val expr: Expression,
         line: Long
 ): Expression(line) {
-    override fun exec(scope: Scope): Value {
-        val value: Value = expr.exec(scope)
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
+        val value: Value = visitor.visit(expr)
         val variable: Variable = scope.getVariable(name, line)
         variable.value.value = value.value
         return value
@@ -144,8 +146,8 @@ class VariableAssign(
         private val expr: Expression,
         line: Long
 ): Expression(line) {
-    override fun exec(scope: Scope): Value {
-        val value: Value = expr.exec(scope)
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
+        val value: Value = visitor.visit(expr)
         val variable: Variable = scope.getVariable(name, line)
         variable.value = value
         return value
@@ -159,15 +161,15 @@ class BinaryExpression(
         val right: Expression,
         line: Long
 ): Expression(line) {
-    override fun exec(scope: Scope): Value {
-        val l: Value = left.exec(scope)
-        val r: Value = right.exec(scope)
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value {
+        val l: Value = visitor.visit(left)
+        val r: Value = visitor.visit(right)
         return l.eval(r, type)
     }
 }
 
 class Value(var value: Long, line: Long): Expression(line) {
-    override fun exec(scope: Scope): Value = this
+    override suspend fun exec(scope: Scope, visitor: EvaluationVisitor): Value = this
 
     private fun plus(v: Value): Value = Value(value + v.value, line)
     private fun minus(v: Value): Value = Value(value - v.value, line)
