@@ -14,12 +14,7 @@ class TexDocument: TextMode() {
     fun usepackage(name: String, vararg args: String) {
         packagesBuilder.append("\\usepackage{$name}")
         if (!args.isEmpty()) {
-            val builder = StringBuilder()
-            for (v in args) {
-                builder.append("$v, ")
-            }
-            builder.delete(builder.length-2, builder.length)
-            packagesBuilder.append("[").append(builder.toString()).append("]")
+            packagesBuilder.append(args.joinToString(prefix = "[", postfix = "]"))
         }
         packagesBuilder.append("\n")
     }
@@ -32,8 +27,7 @@ class TexDocument: TextMode() {
 }
 
 fun document(init: TexDocument.() -> Unit): String {
-    val doc: TexDocument = TexDocument()
-    doc.init()
+    val doc: TexDocument = TexDocument().apply(init)
     return doc.clazz +
             doc.packagesBuilder.toString() +
             "\n\\begin{document}\n" +

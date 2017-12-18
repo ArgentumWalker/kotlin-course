@@ -13,25 +13,12 @@ abstract class TexTag: TexRoot() {
     }
 
     private fun buildText(): String {
-        if (text != null) {
-            return "{$text}"
-        }
-        return ""
+        return if (text != null) "{$text}" else ""
     }
 
     private fun buildArgs(): String {
-        if (!args.isEmpty()) {
-            val builder = StringBuilder()
-            for ((k, v) in args) {
-                if (k.isEmpty()) {
-                    builder.append("$v, ")
-                } else {
-                    builder.append("$k = $v, ")
-                }
-            }
-            builder.delete(builder.length-2, builder.length)
-            return "[" + builder.toString() + "]"
-        }
-        return ""
+        return if (!args.isEmpty())
+            args.joinToString(transform = {pair -> pair.first + " = " + pair.second}, prefix = "[", postfix = "]")
+            else ""
     }
 }

@@ -13,9 +13,11 @@ open class ResultContainer: TexRoot() {
 }
 
 @TexTextMarker
-open class MathMode: ResultContainer()
+open class BaseMode: ResultContainer()
 
-open class TextMode : MathMode()
+open class TextMode : BaseMode()
+
+open class MathMode : BaseMode()
 
 @DslMarker
 annotation class TexTextMarker
